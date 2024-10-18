@@ -15,7 +15,7 @@ os.environ['HF_TOKEN'] = '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'
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = os.environ['HF_TOKEN']
 
 # Load the CSV containing Hadith data
-csv_path = '/content/sahih_bukhari_hadiths.csv'
+csv_path = 'sahih_bukhari_hadiths.csv'
 df = pd.read_csv(csv_path)
 
 # Create LangChain documents with metadata from the CSV file
