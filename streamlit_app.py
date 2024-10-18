@@ -1,56 +1,61 @@
-import streamlit as st
-from openai import OpenAI
+%%writefile app.py
+import os
+import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from langchain_community.llms import HuggingFaceHub  # Corrected import for HuggingFaceHub
+from langchain_community.embeddings import HuggingFaceEmbeddings  # Corrected import for embeddings
+from langchain_community.vectorstores import Chroma  # Corrected import for Chroma
+from langchain.schema import Document  # Corrected import for Document
+import streamlit as st  # Importing Streamlit
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+# Set environment variables for Hugging Face tokens
+os.environ['HF_TOKEN'] = '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'
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = os.environ['HF_TOKEN']
+
+# Load the CSV containing Hadith data
+csv_path = '/content/sahih_bukhari_hadiths.csv'
+df = pd.read_csv(csv_path)
+
+# Create LangChain documents with metadata from the CSV file
+documents = [
+    Document(page_content=row['Hadith English'], metadata={
+        "reference": row['Reference'],
+        "book_number": row['Book Number'],
+        "page_number": row['Page Number'],
+        "hadith_arabic": row['Hadith Arabic']
+    }) for index, row in df.iterrows()
+]
+
+# Load the embedding model for vector store
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+vectorstore = Chroma.from_documents(documents, embedding_model, persist_directory='/content/chroma_db')
+vectorstore.persist()
+
+print("Chroma vector store rebuilt and saved.")
+
+# Define the model configuration for the language model 
+model_id = "meta-llama/Llama-3.2-1B"
+
+# Initialize the LLM from HuggingFaceHub
+llm = HuggingFaceHub(repo_id=model_id, model_kwargs={"device_map": "auto"})
+
+# Create the RetrievalQA chain
+retrieval_qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",  # Defines how to use the retrieved documents
+    retriever=vectorstore.as_retriever()
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# Streamlit interface
+st.title("Hadith Chatbot")
+st.write("Ask a question about the importance of prayer in Islam.")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
-
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Display the existing chat messages via `st.chat_message`.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+question = st.text_input("Your Question:")
+if st.button("Get Answer"):
+    if question:
+        answer = ask_chatbot(question)
+        st.write("Chatbot Answer:", answer)
+    else:
+        st.write("Please enter a question.")
