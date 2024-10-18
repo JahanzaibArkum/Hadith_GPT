@@ -1,15 +1,13 @@
-
 import os
 import pandas as pd    
-import chromadb
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from langchain_community.llms import HuggingFaceHub  # Corrected import for HuggingFaceHub
-from langchain_community.embeddings import HuggingFaceEmbeddings  # Corrected import for embeddings
-from langchain_community.vectorstores import Chroma  # Corrected import for Chroma
-from langchain.schema import Document  # Corrected import for Document
-import streamlit as st  # Importing Streamlit
+from langchain_community.llms import HuggingFaceHub
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain.schema import Document
+import streamlit as st
 
 # Set environment variables for Hugging Face tokens
 os.environ['HF_TOKEN'] = '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'
@@ -45,7 +43,7 @@ llm = HuggingFaceHub(repo_id=model_id, model_kwargs={"device_map": "auto"})
 # Create the RetrievalQA chain
 retrieval_qa = RetrievalQA.from_chain_type(
     llm=llm,
-    chain_type="stuff",  # Defines how to use the retrieved documents
+    chain_type="stuff",
     retriever=vectorstore.as_retriever()
 )
 
