@@ -30,7 +30,7 @@ documents = [
 
 # Load the embedding model for vector store
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = Chroma.from_documents(documents, embedding_model, persist_directory='chroma_db (1).zip')
+vectorstore = Chroma.from_documents(documents, embedding_model, persist_directory='chroma_db')
 vectorstore.persist()
 
 print("Chroma vector store rebuilt and saved.")
